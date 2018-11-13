@@ -160,8 +160,8 @@ class Player:
                     else:
                         num_pi += 2
 
-        # 3 gwang without bigwang : +2
-        # 3 gwang with bigwang : +3
+        # 3 gwang without bigwang : +3
+        # 3 gwang with bigwang : +2
         # 4 gwang : +4
         # 5 gwang : +5
         # Godori (2, 4, 8 birds) : +5
@@ -177,9 +177,9 @@ class Player:
             total_score += 4
         elif num_gwang == 3:
             if has_bigwang:
-                total_score += 3
-            else:
                 total_score += 2
+            else:
+                total_score += 3
 
         if godori_bird == 3:
             total_score += 5

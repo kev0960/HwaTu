@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="0cd4283f-d087-4d61-8321-ce30d0a21b1a" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/src/game.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/game.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/game.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -19,8 +19,8 @@
       <file leaf-file-name="game.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/game.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="370">
-              <caret line="197" column="39" lean-forward="true" selection-start-line="197" selection-start-column="39" selection-end-line="197" selection-end-column="39" />
+            <state relative-caret-position="480">
+              <caret line="181" column="32" selection-start-line="181" selection-start-column="32" selection-end-line="181" selection-end-column="32" />
             </state>
           </provider>
         </entry>
@@ -188,8 +188,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/game.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="370">
-          <caret line="197" column="39" lean-forward="true" selection-start-line="197" selection-start-column="39" selection-end-line="197" selection-end-column="39" />
+        <state relative-caret-position="480">
+          <caret line="181" column="32" selection-start-line="181" selection-start-column="32" selection-end-line="181" selection-end-column="32" />
         </state>
       </provider>
     </entry>

@@ -1,8 +1,4 @@
-'''
-    Class for defining a card.
-    HwaTu cards can be identified by its index in the list of total 48 cards
-'''
-
+from random import shuffle
 
 class Card:
     card_string_to_type = {
@@ -112,9 +108,22 @@ class Card:
     def __cmp__(self, other):
         return self.index == other.index
 
+    def __str__(self):
+        month, property = Card.card_index_to_type[self.index]
+        properties = "".join([Card.card_type_to_string[p] for p in property])
+        return "(Month : " + str(month) + " : " + properties + ")"
+
+    def get_card_info(self):
+        return Card.card_index_to_type[self.index]
+
+    def get_month(self):
+        return Card.card_index_to_type[self.index][0]
 
 class Player:
-    def __init__(self):
+    def __init__(self, game, player_id):
+        self.game = game
+        self.player_id = player_id
+
         self.cards_in_hand = []
         self.cards_taken = []
 
@@ -134,7 +143,7 @@ class Player:
         godori_bird = 0
 
         for card in self.cards_taken:
-            _, card_types = Card.card_index_to_type[card]
+            _, card_types = card.get_card_info()
             if card == 44:
                 has_bigwang = True
             if card == 4 or card == 16 or card == 29:
@@ -205,8 +214,63 @@ class Player:
 
 class HwaTu:
     def __init__(self):
-        pass
+        self.players = [Player(self, 0), Player(self, 1)]
 
+        self.cards = [Card(i) for i in range(48)]
+        shuffle(self.cards)
+
+        self.players[0].cards_in_hand = self.cards[:10]
+        self.players[1].cards_in_hand = self.cards[10:20]
+
+        self.opened_cards = self.cards[20:28]
+        self.cards_on_pile = self.cards[28:]
+
+    # Returns whatever earned card.
+    def play_card(self, played_card):
+        played_card_month = played_card.get_month()
+        top_card = self.cards_on_pile[0]
+        top_card_month = top_card.get_month()
+
+        # Remove the top card on the pile
+        self.cards_on_pile = self.cards_on_pile[1:]
+
+        month_to_cnt = {}
+        for card in self.opened_cards:
+            month_to_cnt[card.get_month()] += 1
+
+        if played_card_month == top_card_month:
+            if month_to_cnt[played_card_month] == 0:
+                return [played_card, top_card]
+            elif month_to_cnt[played_card_month] == 1: # bbuck
+                self.opened_cards += [played_card, top_card]
+            else:
+                cards = []
+                for card in self.opened_cards:
+                    if card.get_month() == played_card_month:
+                        cards.append(card)
+                return cards + [played_card, top_card]
+
+        else:
+            cards = []
+            for card in [played_card, top_card]:
+                if month_to_cnt[card] == 0:
+                    self.opened_cards.append(card)
+                elif month_to_cnt[card] <= 2:
+                    for c in self.opened_cards:
+                        if c.get_month() == card.get_month():
+                            cards.append(c)
+                            break
+                    cards.append(card)
+                else:
+                    for c in self.opened_cards:
+                        if c.get_month() == card.get_month():
+                            cards.append(c)
+                    cards.append(card)
+
+            return cards
 
 if __name__ == '__main__':
-    c = Card(3)
+    game = HwaTu()
+
+    print(game.opened_cards)
+    print(game.cards_on_pile)

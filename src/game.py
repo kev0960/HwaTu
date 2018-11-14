@@ -202,6 +202,15 @@ class Player:
 
         return total_score
 
+    # Given the board, determine what actions are valid by looking at cards in hand
+    # A valid action is the index of the card that can be played
+    def get_actions(self, board):
+      actions = []
+      months =  set([card / 4 for card in board])
+      for card in cards_in_hand:
+        if card / 4 in months:
+          actions.append(card)
+      return actions
 
 class HwaTu:
     def __init__(self):

@@ -213,7 +213,7 @@ class Player:
         return total_score
 
     # Given the board, determine what actions are valid by looking at cards in hand
-    # A valid action is the index of the card that can be played
+    # A valid action is the tuple of (card from hand, target open card/None if no match)
     def get_actions(self, opened_cards):
       actions = []
       for card_h in cards_in_hand:

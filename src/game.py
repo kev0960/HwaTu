@@ -212,6 +212,19 @@ class Player:
 
         return total_score
 
+    # Given the board, determine what actions are valid by looking at cards in hand
+    # A valid action is the tuple of (card from hand, target open card/None if no match)
+    def get_actions(self, opened_cards):
+      actions = []
+      for card_h in cards_in_hand:
+        has_match = False
+        for card_o in opened_cards:
+          if card_h.get_month() == card_o.get_month():
+            actions.append((card_h, card_o))
+            has_match = True
+        if not has_match:
+          actions.append((card_h, None))
+      return actions
 
 class HwaTu:
     def __init__(self):

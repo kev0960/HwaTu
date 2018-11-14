@@ -280,7 +280,7 @@ class HwaTu:
           if card_to_hit in month_to_cards[card.get_month()]:
             cards.append(card_to_hit)
             self.opened_cards.remove(card_to_hit)
-          else:
+          else: # If top card matches 2 opened cards, pick first match in the array
             cards.append(month_to_cards[card.get_month()][0])
             self.opened_cards.remove(month_to_cards[card.get_month()][0])
           cards.append(card)

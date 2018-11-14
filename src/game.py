@@ -50,7 +50,8 @@ class Card:
         'SsangPi',
         'Chungdan',
         'Deer',
-        'Pig'
+        'Pig',
+        'YyeolggutandSsangPi'
     ]
 
     card_index_to_type = [(1, [1, 13]),
@@ -108,9 +109,9 @@ class Card:
     def __cmp__(self, other):
         return self.index == other.index
 
-    def __str__(self):
+    def __repr__(self):
         month, property = Card.card_index_to_type[self.index]
-        properties = "".join([Card.card_type_to_string[p] for p in property])
+        properties = ", ".join([Card.card_type_to_string[p] for p in property])
         return "(Month : " + str(month) + " : " + properties + ")"
 
     def get_card_info(self):
@@ -144,9 +145,9 @@ class Player:
 
         for card in self.cards_taken:
             _, card_types = card.get_card_info()
-            if card == 44:
+            if card.index == 44:
                 has_bigwang = True
-            if card == 4 or card == 16 or card == 29:
+            if card.index == 4 or card.index == 16 or card.index == 29:
                 godori_bird += 1
             for card_type in card_types:
                 if card_type == 15:
@@ -272,5 +273,5 @@ class HwaTu:
 if __name__ == '__main__':
     game = HwaTu()
 
-    print(game.opened_cards)
-    print(game.cards_on_pile)
+    print('', game.opened_cards)
+    print('', game.cards_on_pile)

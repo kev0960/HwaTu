@@ -214,12 +214,16 @@ class Player:
 
     # Given the board, determine what actions are valid by looking at cards in hand
     # A valid action is the index of the card that can be played
-    def get_actions(self, board):
+    def get_actions(self, opened_cards):
       actions = []
-      months =  set([card / 4 for card in board])
-      for card in cards_in_hand:
-        if card / 4 in months:
-          actions.append(card)
+      for card_h in cards_in_hand:
+        has_match = False
+        for card_o in opened_cards:
+          if card_h.get_month() == card_o.get_month():
+            actions.append((card_h, card_o))
+            has_match = True
+        if not has_match:
+          actions.append((card_h, None))
       return actions
 
 class HwaTu:

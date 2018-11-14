@@ -1,5 +1,5 @@
 from random import shuffle
-
+from collections import defaultdict
 
 class Card:
   card_string_to_type = {
@@ -107,13 +107,17 @@ class Card:
   def __init__(self, index):
     self.index = index
 
-  def __cmp__(self, other):
+  def __hash__(self):
+    return self.index
+
+  def __eq__(self, other):
     return self.index == other.index
 
   def __repr__(self):
     month, property = Card.card_index_to_type[self.index]
     properties = ", ".join([Card.card_type_to_string[p] for p in property])
-    return "(Month : " + str(month) + " : " + properties + ")"
+    #return "(Month : " + str(month) + " : " + properties + ")"
+    return str(self.index)
 
   def get_card_info(self):
     return Card.card_index_to_type[self.index]
@@ -218,7 +222,7 @@ class Player:
   # A valid action is the tuple of (card from hand, target open card/None if no match)
   def get_actions(self, opened_cards):
     actions = []
-    for card_h in cards_in_hand:
+    for card_h in self.cards_in_hand:
       has_match = False
       for card_o in opened_cards:
         if card_h.get_month() == card_o.get_month():
@@ -252,12 +256,12 @@ class HwaTu:
     # Remove the top card on the pile
     self.cards_on_pile = self.cards_on_pile[1:]
 
-    month_to_cards = {}
+    month_to_cards = defaultdict(list)
     for card in self.opened_cards:
-      month_to_cards.get(card.get_month(), []).append(card)
+      month_to_cards[card.get_month()].append(card)
 
     if played_card_month == top_card_month:
-      match_cnt = len(month_to_cards[played_card_month])
+      match_cnt = len(month_to_cards.get(played_card_month, []))
       if match_cnt == 0:
         return [played_card, top_card]
       elif match_cnt == 1:  # bbuck
@@ -269,7 +273,8 @@ class HwaTu:
     else:
       cards = []
       for card in [played_card, top_card]:
-        match_cnt = len(month_to_cards[card])
+        match_cnt = len(month_to_cards[card.get_month()])
+
         if match_cnt == 0:
           self.opened_cards.append(card)
         elif match_cnt == 1:
@@ -292,10 +297,3 @@ class HwaTu:
           cards.append(card)
 
       return cards
-
-
-if __name__ == '__main__':
-  game = HwaTu()
-
-  print('', game.opened_cards)
-  print('', game.cards_on_pile)

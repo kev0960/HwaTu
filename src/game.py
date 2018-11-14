@@ -227,7 +227,8 @@ class HwaTu:
         self.cards_on_pile = self.cards[28:]
 
     # Returns whatever earned card.
-    def play_card(self, played_card):
+    def play_card(self, played_card_and_card_to_hit):
+        played_card, card_to_hit = played_card_and_card_to_hit
         played_card_month = played_card.get_month()
         top_card = self.cards_on_pile[0]
         top_card_month = top_card.get_month()
@@ -235,37 +236,43 @@ class HwaTu:
         # Remove the top card on the pile
         self.cards_on_pile = self.cards_on_pile[1:]
 
-        month_to_cnt = {}
+        month_to_cards = {}
         for card in self.opened_cards:
-            month_to_cnt[card.get_month()] += 1
+            month_to_cards.get(card.get_month(), []).append(card)
 
         if played_card_month == top_card_month:
-            if month_to_cnt[played_card_month] == 0:
+            match_cnt = len(month_to_cards[played_card_month])
+            if match_cnt == 0:
                 return [played_card, top_card]
-            elif month_to_cnt[played_card_month] == 1: # bbuck
+            elif match_cnt == 1: # bbuck
                 self.opened_cards += [played_card, top_card]
             else:
-                cards = []
-                for card in self.opened_cards:
-                    if card.get_month() == played_card_month:
-                        cards.append(card)
-                return cards + [played_card, top_card]
-
+                for c in month_to_cards[played_card_month]:
+                    self.opened_cards.remove(c)
+                return month_to_cards[played_card_month] + [played_card, top_card]
         else:
             cards = []
             for card in [played_card, top_card]:
-                if month_to_cnt[card] == 0:
+                match_cnt = len(month_to_cards[card])
+                if match_cnt == 0:
                     self.opened_cards.append(card)
-                elif month_to_cnt[card] <= 2:
-                    for c in self.opened_cards:
-                        if c.get_month() == card.get_month():
-                            cards.append(c)
-                            break
+                elif match_cnt == 1:
+                    cards += month_to_cards[card.get_month()]
+                    cards.append(card)
+                    self.opened_cards.remove(month_to_cards[card.get_month()][0])
+                elif match_cnt == 2:
+                    if card_to_hit in month_to_cards[card.get_month()]:
+                        cards.append(card_to_hit)
+                        self.opened_cards.remove(card_to_hit)
+                    else:
+                        cards.append(month_to_cards[card.get_month()][0])
+                        self.opened_cards.remove(month_to_cards[card.get_month()][0])
                     cards.append(card)
                 else:
                     for c in self.opened_cards:
                         if c.get_month() == card.get_month():
                             cards.append(c)
+                            self.opened_cards.remove(c)
                     cards.append(card)
 
             return cards

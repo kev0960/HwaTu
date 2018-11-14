@@ -266,6 +266,7 @@ class HwaTu:
         return [played_card, top_card]
       elif match_cnt == 1:  # bbuck
         self.opened_cards += [played_card, top_card]
+        return []
       else:
         for c in month_to_cards[played_card_month]:
           self.opened_cards.remove(c)

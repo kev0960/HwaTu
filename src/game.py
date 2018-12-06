@@ -1,7 +1,7 @@
 from random import shuffle
 from collections import defaultdict
 import numpy as np
-
+from tqdm import tqdm
 
 class Card:
   card_string_to_type = {
@@ -369,6 +369,25 @@ class HwaTu:
     reward = (current_score - prev_score) + 0.1 * len(earned_card)
     return reward
 
+  def get_player_score(self, player_id):
+    return self.players[player_id].compute_score()
+
+  def print_game_state(self):
+    print("Player 0's Hand ----------")
+    print(self.players[0].cards_in_hand)
+    print("Player 0's Taken Cards ---")
+    print(self.players[0].cards_taken)
+    print("Player 1's Hand ----------")
+    print(self.players[1].cards_in_hand)
+    print("Player 1's Taken Cards ---")
+    print(self.players[1].cards_taken)
+    print("Cards on Board -----------")
+    print(self.opened_cards)
+    print("Cards on Pile ------------")
+    print(self.cards_on_pile)
+    print("Score :: ", self.players[0].compute_score(), self.players[1].compute_score())
+    print("\n=======================\n")
+
 class SARSA:
   def __init__(self):
     # size of state + size of action
@@ -383,14 +402,16 @@ class SARSA:
     vec = np.concatenate((state, action_to_vec(action)), axis=None)
     return np.dot(self.weights, vec)
 
-  def run(self):
+  def run_once(self):
     game = HwaTu()
     s_prev = None
     a_prev = None
     r_prev = None
 
     while not game.is_game_ended():
+      #game.print_game_state()
       s_curr = game.get_player_state(0)
+
       # Player 0 plays the card
       if np.random.rand() < self.exploration:
         # Explore the action.
@@ -411,19 +432,54 @@ class SARSA:
         # Q(s_prev, a_prev)
         # <- Q(s_prev, a_prev) + lr * (r_prev + gamma * Q(s_curr, a_curr) - Q(s_prev, a_prev))
         delta = r_prev + self.gamma * self.get_Q(s_curr, a_curr) - self.get_Q(s_prev, a_prev)
-        self.weights += self.learning_rate * delta * self.weights
+        self.weights += self.learning_rate * delta * np.concatenate((s_prev, action_to_vec(a_prev)), axis=None)
 
       # Do the max action.
       r_prev = game.player_do_action(0, a_curr)
-
       s_prev = s_curr
       a_prev = a_curr
+
+      #game.print_game_state()
+
+      if game.get_player_score(0) > 7:
+        break
 
       # Now let the opponent (player 1) to play.
       player_1_action = game.get_player_random_action(1)
       game.player_do_action(1, player_1_action)
 
-sarsa = SARSA()
+      if game.get_player_score(1) > 7:
+        break
 
-for _ in range(10000):
-  sarsa.run()
+    return game
+
+
+  def run(self):
+    score_0 = []
+    score_1 = []
+    winner = 0
+    for num_iter in tqdm(range(1000000)):
+      game = self.run_once()
+      p0_score = game.get_player_score(0)
+      p1_score = game.get_player_score(1)
+
+      score_0.append(p0_score)
+      score_1.append(p1_score)
+
+      if p0_score > p1_score:
+        winner += 1
+
+      if num_iter > 0 and num_iter % 3000 == 0:
+        print("Avg score : ", np.average(score_0), np.average(score_1), self.exploration)
+        print("Win rate : ", winner / 3000)
+        winner = 0
+
+        score_0 = []
+        score_1 = []
+        if num_iter % 9000 == 0:
+          self.exploration *= 0.95
+          #print(self.weights)
+
+
+sarsa = SARSA()
+sarsa.run()

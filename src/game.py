@@ -385,10 +385,10 @@ class SARSA:
 
 
   def initialize_weights(self):
-    W1 = np.random.randn(48 * 4 + 48 + 48, 48 * 4 + 48 + 48) * 0.01
-    b1 = np.zeros(48 * 4 + 48 + 48)
-    W2 = np.random.randn(1, 48 * 4 + 48 + 48) * 0.01
-    b2 = np.zeros(1)
+    W1 = np.random.randn(288, 48 * 4 + 48 + 48) * 0.01
+    b1 = np.zeros((288, 1))
+    W2 = np.random.randn(1, 288) * 0.01
+    b2 = np.zeros((1, 1))
     self.weights['W1'] = W1
     self.weights['b1'] = b1
     self.weights['W2'] = W2
@@ -397,6 +397,7 @@ class SARSA:
   # Get Q(s, a)
   def get_Q(self, state, action):
     vec = np.concatenate((state, action_to_vec(action)), axis=None)
+    vec = np.reshape(vec, (288, 1))
     Z, linear_cache_1 = util.linear_forward(vec, self.weights['W1'], self.weights['b1'])
     A, activation_cache = util.relu(Z)
     Z, linear_cache_2 = util.linear_forward(A, self.weights['W2'], self.weights['b2'])
@@ -462,11 +463,13 @@ class SARSA:
       if game.get_player_score(1) > 7:
         break
 
+    return game
+
   def run(self):
     score_0 = []
     score_1 = []
     winner = 0
-    for num_iter in tqdm(range(1000000)):
+    for num_iter in (range(1000000)):
       game = self.run_once()
       p0_score = game.get_player_score(0)
       p1_score = game.get_player_score(1)

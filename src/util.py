@@ -2,14 +2,14 @@ import numpy as np
 
 def linear_forward(A, W, b):
     Z = np.dot(W, A) + b
-    cache = (A, W, b)  
+    cache = (A, W, b)
     return Z, cache
 
 def linear_backward(dZ, cache):
     A_prev, W, b = cache
-    dW = np.dot(dZ, cache[0].T)
+    dW = np.dot(dZ, A_prev.T)
     db = np.sum(dZ, axis=1, keepdims=True)
-    dA_prev = np.dot(cache[1].T, dZ)
+    dA_prev = np.dot(W.T, dZ)
     return dA_prev, dW, db
 
 def relu(Z):

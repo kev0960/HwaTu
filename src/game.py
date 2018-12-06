@@ -1,5 +1,7 @@
 from random import shuffle
 from collections import defaultdict
+import numpy as np
+
 
 class Card:
   card_string_to_type = {
@@ -116,7 +118,7 @@ class Card:
   def __repr__(self):
     month, property = Card.card_index_to_type[self.index]
     properties = ", ".join([Card.card_type_to_string[p] for p in property])
-    #return "(Month : " + str(month) + " : " + properties + ")"
+    # return "(Month : " + str(month) + " : " + properties + ")"
     return str(self.index)
 
   def get_card_info(self):
@@ -124,6 +126,26 @@ class Card:
 
   def get_month(self):
     return Card.card_index_to_type[self.index][0]
+
+
+# Convert the array of cards to numpy vector
+def card_array_to_vec(cards):
+  vec = np.zeros(48)
+  for c in cards:
+    vec[c.index] = 1
+
+  return vec
+
+def action_to_vec(action):
+  if action[1] is None:
+    card_to_hit = np.zeros(48)
+  else:
+    card_to_hit = np.zeros(48)
+    card_to_hit[action[1].index] = 1
+
+  card_to_play = np.zeros(48)
+  card_to_play[action[0].index] = 1
+  return np.concatenate((card_to_play, card_to_hit), axis=None)
 
 
 class Player:
@@ -232,6 +254,18 @@ class Player:
         actions.append((card_h, None))
     return actions
 
+  def get_random_action(self):
+    possible_actions = []
+    for card_h in self.cards_in_hand:
+      for card_o in self.game.opened_cards:
+        if card_h.get_month() == card_o.get_month():
+          possible_actions.append((card_h, card_o))
+
+    if len(possible_actions) == 0:
+      possible_actions = [(card, None) for card in self.cards_in_hand]
+
+    idx = np.random.choice(len(possible_actions), 1)[0]
+    return possible_actions[idx]
 
 class HwaTu:
   def __init__(self):
@@ -286,7 +320,7 @@ class HwaTu:
           if card_to_hit in month_to_cards[card.get_month()]:
             cards.append(card_to_hit)
             self.opened_cards.remove(card_to_hit)
-          else: # If top card matches 2 opened cards, pick first match in the array
+          else:  # If top card matches 2 opened cards, pick first match in the array
             cards.append(month_to_cards[card.get_month()][0])
             self.opened_cards.remove(month_to_cards[card.get_month()][0])
           cards.append(card)
@@ -298,3 +332,95 @@ class HwaTu:
           cards.append(card)
 
       return cards
+
+  # Returns the player's state
+  # State : [my cards on hand, my taken cards, cards on board, cards taken by opponent]
+  def get_player_state(self, player_id):
+    opponent = 0 if player_id == 1 else 1
+    my_cards_on_hand = card_array_to_vec(self.players[player_id].cards_in_hand)
+    my_taken_cards = card_array_to_vec(self.players[player_id].cards_taken)
+    cards_on_board = card_array_to_vec(self.opened_cards)
+    opponent_taken_cards = card_array_to_vec(self.players[opponent].cards_taken)
+
+    return np.concatenate((my_cards_on_hand, my_taken_cards, cards_on_board, opponent_taken_cards), axis=None)
+
+  def is_game_ended(self):
+    return len(self.cards_on_pile) == 0
+
+  def get_player_random_action(self, player_id):
+    return self.players[player_id].get_random_action()
+
+  def get_player_possible_action(self, player_id):
+    return self.players[player_id].get_actions(self.opened_cards)
+
+  def player_do_action(self, player_id, action):
+    earned_card = self.play_card(action)
+    prev_score = self.players[player_id].compute_score()
+
+    # Add earned cards to the player's board
+    self.players[player_id].cards_taken += earned_card
+
+    # Remove the card from the hand
+    self.players[player_id].cards_in_hand.remove(action[0])
+    current_score = self.players[player_id].compute_score()
+
+    reward = (current_score - prev_score) + 0.1 * len(earned_card)
+    return reward
+
+class SARSA:
+  def __init__(self):
+    # size of state + size of action
+    self.weights = np.ones(48 * 4 + 48 + 48)
+
+    self.exploration = 0.9
+    self.learning_rate = 0.01
+    self.gamma = 0.9
+
+  # Get Q(s, a)
+  def get_Q(self, state, action):
+    vec = np.concatenate((state, action_to_vec(action)), axis=None)
+    print(vec)
+    return np.dot(self.weights, vec)
+
+  def run(self):
+    game = HwaTu()
+    s_prev = None
+    a_prev = None
+    r_prev = None
+
+    while not game.is_game_ended():
+      s_curr = game.get_player_state(0)
+      # Player 0 plays the card
+      if np.random.rand() < self.exploration:
+        # Explore the action.
+        a_curr = game.get_player_random_action(0)
+      else :
+        # Pick the action that gives maximum Q value
+        player_0_actions = game.get_player_possible_action(0)
+
+        # Calculate Q(s,a) for each
+        q_vals = [self.get_Q(s_curr, action) for action in player_0_actions]
+
+        # What gives max q val?
+        max_action = np.argmax(q_vals)
+        a_curr = player_0_actions[max_action]
+
+      # Do SARSA step with s_prev, a_prev, r_prev and s_curr, a_curr
+      if s_prev is not None:
+        # Q(s_prev, a_prev)
+        # <- Q(s_prev, a_prev) + lr * (r_prev + gamma * Q(s_curr, a_curr) - Q(s_prev, a_prev))
+        delta = r_prev + self.gamma * self.get_Q(s_curr, a_curr) - self.get_Q(s_prev, a_prev)
+        self.weights += self.learning_rate * delta * self.weights
+
+      # Do the max action.
+      r_prev = game.player_do_action(0, a_curr)
+
+      s_prev = s_curr
+      a_prev = a_curr
+
+      # Now let the opponent (player 1) to play.
+      player_1_action = game.get_player_random_action(1)
+      game.player_do_action(1, player_1_action)
+
+sarsa = SARSA()
+sarsa.run()

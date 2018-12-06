@@ -1,6 +1,7 @@
 from random import shuffle
 from collections import defaultdict
 import numpy as np
+import util
 
 
 class Card:
@@ -372,16 +373,40 @@ class HwaTu:
 class SARSA:
   def __init__(self):
     # size of state + size of action
-    self.weights = np.ones(48 * 4 + 48 + 48)
-
+    self.weights = {}
     self.exploration = 0.9
     self.learning_rate = 0.01
     self.gamma = 0.9
 
+
+  def initialize_weights(self):
+    W1 = np.random.randn(48 * 4 + 48 + 48, 48 * 4 + 48 + 48) * 0.01
+    b1 = np.zeros(48 * 4 + 48 + 48)
+    W2 = np.random.randn(48 * 4 + 48 + 48, 1) * 0.01
+    b2 = np.zeros(1)
+    self.weights['W1'] = W1
+    self.weights['b1'] = b1
+    self.weights['W2'] = W2
+    self.weights['b2'] = b2
+
   # Get Q(s, a)
   def get_Q(self, state, action):
     vec = np.concatenate((state, action_to_vec(action)), axis=None)
-    return np.dot(self.weights, vec)
+    Z, linear_cache_1 = util.linear_forward(vec, self.weights['W1'], self.weights['b1'])
+    A, activation_cache = util.relu(Z)
+    Z, linear_cache_2 = util.linear_forward(A, self.weights['W2'], self.weights['b2'])
+    caches = (linear_cache_1, activation_cache, linear_cache_2)
+    return Z, caches
+
+  def update_weights(self, delta, caches):
+    linear_cache_1, activation_cache, linear_cache_2 = caches
+    dA, dW2, db2 = util.linear_backward(delta, linear_cache_2)
+    dZ = util.relu_backward(dA, activation_cache)
+    _, dW1, db1 = util.linear_backward(dZ, linear_cache_1)
+    self.weights['W1'] += self.learning_rate * dW1
+    self.weights['b1'] += self.learning_rate * db1
+    self.weights['W2'] += self.learning_rate * dW2
+    self.weights['b2'] += self.learning_rate * db2
 
   def run(self):
     game = HwaTu()
@@ -400,7 +425,7 @@ class SARSA:
         player_0_actions = game.get_player_possible_action(0)
 
         # Calculate Q(s,a) for each
-        q_vals = [self.get_Q(s_curr, action) for action in player_0_actions]
+        q_vals = [self.get_Q(s_curr, action)[0] for action in player_0_actions]
 
         # What gives max q val?
         max_action = np.argmax(q_vals)
@@ -410,8 +435,10 @@ class SARSA:
       if s_prev is not None:
         # Q(s_prev, a_prev)
         # <- Q(s_prev, a_prev) + lr * (r_prev + gamma * Q(s_curr, a_curr) - Q(s_prev, a_prev))
-        delta = r_prev + self.gamma * self.get_Q(s_curr, a_curr) - self.get_Q(s_prev, a_prev)
-        self.weights += self.learning_rate * delta * self.weights
+        q_curr = self.get_Q(s_curr, a_curr)[0]
+        q_prev, caches = self.get_Q(s_prev, a_prev)
+        delta = r_prev + self.gamma * q_curr - q_prev
+        update_weights(delta, caches)
 
       # Do the max action.
       r_prev = game.player_do_action(0, a_curr)

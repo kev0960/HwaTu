@@ -113,6 +113,8 @@ class Card:
     return self.index
 
   def __eq__(self, other):
+    if other is None:
+      return False
     return self.index == other.index
 
   def __repr__(self):
@@ -379,7 +381,6 @@ class SARSA:
   # Get Q(s, a)
   def get_Q(self, state, action):
     vec = np.concatenate((state, action_to_vec(action)), axis=None)
-    print(vec)
     return np.dot(self.weights, vec)
 
   def run(self):
@@ -423,4 +424,6 @@ class SARSA:
       game.player_do_action(1, player_1_action)
 
 sarsa = SARSA()
-sarsa.run()
+
+for _ in range(10000):
+  sarsa.run()

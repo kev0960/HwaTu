@@ -2,7 +2,7 @@ from random import shuffle
 from collections import defaultdict
 import numpy as np
 import util
-
+from tqdm import tqdm
 
 class Card:
   card_string_to_type = {
@@ -370,6 +370,9 @@ class HwaTu:
     reward = (current_score - prev_score) + 0.1 * len(earned_card)
     return reward
 
+  def get_player_score(self, player_id):
+    return self.players[player_id].compute_score()
+
 class SARSA:
   def __init__(self):
     # size of state + size of action
@@ -378,11 +381,13 @@ class SARSA:
     self.learning_rate = 0.01
     self.gamma = 0.9
 
+    self.initialize_weights()
+
 
   def initialize_weights(self):
     W1 = np.random.randn(48 * 4 + 48 + 48, 48 * 4 + 48 + 48) * 0.01
     b1 = np.zeros(48 * 4 + 48 + 48)
-    W2 = np.random.randn(48 * 4 + 48 + 48, 1) * 0.01
+    W2 = np.random.randn(1, 48 * 4 + 48 + 48) * 0.01
     b2 = np.zeros(1)
     self.weights['W1'] = W1
     self.weights['b1'] = b1
@@ -403,12 +408,13 @@ class SARSA:
     dA, dW2, db2 = util.linear_backward(delta, linear_cache_2)
     dZ = util.relu_backward(dA, activation_cache)
     _, dW1, db1 = util.linear_backward(dZ, linear_cache_1)
+
     self.weights['W1'] += self.learning_rate * dW1
     self.weights['b1'] += self.learning_rate * db1
     self.weights['W2'] += self.learning_rate * dW2
     self.weights['b2'] += self.learning_rate * db2
 
-  def run(self):
+  def run_once(self):
     game = HwaTu()
     s_prev = None
     a_prev = None
@@ -438,7 +444,7 @@ class SARSA:
         q_curr = self.get_Q(s_curr, a_curr)[0]
         q_prev, caches = self.get_Q(s_prev, a_prev)
         delta = r_prev + self.gamma * q_curr - q_prev
-        update_weights(delta, caches)
+        self.update_weights(delta, caches)
 
       # Do the max action.
       r_prev = game.player_do_action(0, a_curr)
@@ -446,9 +452,40 @@ class SARSA:
       s_prev = s_curr
       a_prev = a_curr
 
+      if game.get_player_score(0) > 7:
+        break
+
       # Now let the opponent (player 1) to play.
       player_1_action = game.get_player_random_action(1)
       game.player_do_action(1, player_1_action)
+
+      if game.get_player_score(1) > 7:
+        break
+
+  def run(self):
+    score_0 = []
+    score_1 = []
+    winner = 0
+    for num_iter in tqdm(range(1000000)):
+      game = self.run_once()
+      p0_score = game.get_player_score(0)
+      p1_score = game.get_player_score(1)
+
+      score_0.append(p0_score)
+      score_1.append(p1_score)
+
+      if p0_score > p1_score:
+        winner += 1
+
+      if num_iter > 0 and num_iter % 3000 == 0:
+        print("Avg score : ", np.average(score_0), np.average(score_1), self.exploration)
+        print("Win rate : ", winner / 3000)
+        winner = 0
+
+        score_0 = []
+        score_1 = []
+        if num_iter % 9000 == 0:
+          self.exploration *= 0.95
 
 sarsa = SARSA()
 

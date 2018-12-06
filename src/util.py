@@ -7,9 +7,8 @@ def linear_forward(A, W, b):
 
 def linear_backward(dZ, cache):
     A_prev, W, b = cache
-    m = A_prev.shape[1]
-    dW = np.dot(dZ, cache[0].T) / m
-    db = np.sum(dZ, axis=1, keepdims=True) / m
+    dW = np.dot(dZ, cache[0].T)
+    db = np.sum(dZ, axis=1, keepdims=True)
     dA_prev = np.dot(cache[1].T, dZ)
     return dA_prev, dW, db
 

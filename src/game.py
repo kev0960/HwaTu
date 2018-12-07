@@ -2,7 +2,11 @@ from random import shuffle
 from collections import defaultdict
 import numpy as np
 import util
+import torch
 from tqdm import tqdm
+
+dtype = torch.float
+device = torch.device("cpu")
 
 class Card:
   card_string_to_type = {
@@ -381,39 +385,20 @@ class SARSA:
     self.learning_rate = 0.01
     self.gamma = 0.9
 
-    self.initialize_weights()
+    self.model = torch.nn.Sequential(
+      torch.nn.Linear(288, 50),
+      torch.nn.ReLU(),
+      torch.nn.Linear(50, 1),
+    )
 
-
-  def initialize_weights(self):
-    W1 = np.random.randn(288, 48 * 4 + 48 + 48) * 0.01
-    b1 = np.zeros((288, 1))
-    W2 = np.random.randn(1, 288) * 0.01
-    b2 = np.zeros((1, 1))
-    self.weights['W1'] = W1
-    self.weights['b1'] = b1
-    self.weights['W2'] = W2
-    self.weights['b2'] = b2
+    self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
   # Get Q(s, a)
   def get_Q(self, state, action):
     vec = np.concatenate((state, action_to_vec(action)), axis=None)
-    vec = np.reshape(vec, (288, 1))
-    Z, linear_cache_1 = util.linear_forward(vec, self.weights['W1'], self.weights['b1'])
-    A, activation_cache = util.relu(Z)
-    Z, linear_cache_2 = util.linear_forward(A, self.weights['W2'], self.weights['b2'])
-    caches = (linear_cache_1, activation_cache, linear_cache_2)
-    return Z, caches
+    vec = torch.from_numpy(np.reshape(vec, (1, 288))).float()
 
-  def update_weights(self, delta, caches):
-    linear_cache_1, activation_cache, linear_cache_2 = caches
-    dA, dW2, db2 = util.linear_backward(delta, linear_cache_2)
-    dZ = util.relu_backward(dA, activation_cache)
-    _, dW1, db1 = util.linear_backward(dZ, linear_cache_1)
-
-    self.weights['W1'] += self.learning_rate * dW1
-    self.weights['b1'] += self.learning_rate * db1
-    self.weights['W2'] += self.learning_rate * dW2
-    self.weights['b2'] += self.learning_rate * db2
+    return self.model(vec)
 
   def run_once(self):
     game = HwaTu()
@@ -442,10 +427,13 @@ class SARSA:
       if s_prev is not None:
         # Q(s_prev, a_prev)
         # <- Q(s_prev, a_prev) + lr * (r_prev + gamma * Q(s_curr, a_curr) - Q(s_prev, a_prev))
-        q_curr = self.get_Q(s_curr, a_curr)[0]
-        q_prev, caches = self.get_Q(s_prev, a_prev)
-        delta = r_prev + self.gamma * q_curr - q_prev
-        self.update_weights(delta, caches)
+        q_curr = self.get_Q(s_curr, a_curr)
+        q_prev = self.get_Q(s_prev, a_prev)
+        loss = torch.nn.L1Loss(reduction="sum")(r_prev + self.gamma * q_curr, q_prev)
+
+        self.model.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
       # Do the max action.
       r_prev = game.player_do_action(0, a_curr)
@@ -469,7 +457,7 @@ class SARSA:
     score_0 = []
     score_1 = []
     winner = 0
-    for num_iter in (range(1000000)):
+    for num_iter in tqdm(range(1000000)):
       game = self.run_once()
       p0_score = game.get_player_score(0)
       p1_score = game.get_player_score(1)

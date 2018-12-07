@@ -379,8 +379,6 @@ class HwaTu:
 
 class SARSA:
   def __init__(self):
-    # size of state + size of action
-    self.weights = {}
     self.exploration = 0.9
     self.learning_rate = 0.01
     self.gamma = 0.9
@@ -422,6 +420,9 @@ class SARSA:
         # What gives max q val?
         max_action = np.argmax(q_vals)
         a_curr = player_0_actions[max_action]
+
+      if game.get_player_score(0) > 7:
+        r_prev += 5
 
       # Do SARSA step with s_prev, a_prev, r_prev and s_curr, a_curr
       if s_prev is not None:

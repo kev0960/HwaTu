@@ -1,7 +1,7 @@
 from random import shuffle
 from collections import defaultdict
 import numpy as np
-import util
+import copy
 import torch
 from tqdm import tqdm
 
@@ -384,12 +384,14 @@ class SARSA:
     self.gamma = 0.9
 
     self.model = torch.nn.Sequential(
-      torch.nn.Linear(288, 50),
+      torch.nn.Linear(288, 10),
       torch.nn.ReLU(),
-      torch.nn.Linear(50, 1),
+      torch.nn.Linear(10, 1),
     )
 
+    self.target = copy.deepcopy(self.model)
     self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+    self.saved_state_transitions = []
 
   # Get Q(s, a)
   def get_Q(self, state, action):
@@ -397,6 +399,35 @@ class SARSA:
     vec = torch.from_numpy(np.reshape(vec, (1, 288))).float()
 
     return self.model(vec)
+
+  def get_Q_target(self, state, action):
+    vec = np.concatenate((state, action_to_vec(action)), axis=None)
+    vec = torch.from_numpy(np.reshape(vec, (1, 288))).float()
+
+    return self.target(vec)
+
+  # Given state, get possible actions
+  def get_possible_actions(self, state):
+    cards_on_hand = []
+    for i in range(48):
+      if state[i] == 1:
+        cards_on_hand.append(Card(i))
+
+    opened_cards = []
+    for i in range(48 * 2, 48 * 3):
+      if state[i] == 1:
+        opened_cards.append(Card(i - 48 * 2))
+
+    actions = []
+    for card_h in cards_on_hand:
+      has_match = False
+      for card_o in opened_cards:
+        if card_h.get_month() == card_o.get_month():
+          actions.append((card_h, card_o))
+          has_match = True
+      if not has_match:
+        actions.append((card_h, None))
+    return actions
 
   def run_once(self):
     game = HwaTu()
@@ -406,10 +437,14 @@ class SARSA:
 
     while not game.is_game_ended():
       s_curr = game.get_player_state(0)
+
+      if s_prev is not None:
+        self.saved_state_transitions.append((s_prev, a_prev, r_prev, s_curr))
+
       # Player 0 plays the card
       if np.random.rand() < self.exploration:
         # Explore the action.
-        a_curr = game.get_player_random_action(0)
+        a_prev = game.get_player_random_action(0)
       else :
         # Pick the action that gives maximum Q value
         player_0_actions = game.get_player_possible_action(0)
@@ -419,28 +454,11 @@ class SARSA:
 
         # What gives max q val?
         max_action = np.argmax(q_vals)
-        a_curr = player_0_actions[max_action]
-
-      if game.get_player_score(0) > 7:
-        r_prev += 5
-
-      # Do SARSA step with s_prev, a_prev, r_prev and s_curr, a_curr
-      if s_prev is not None:
-        # Q(s_prev, a_prev)
-        # <- Q(s_prev, a_prev) + lr * (r_prev + gamma * Q(s_curr, a_curr) - Q(s_prev, a_prev))
-        q_curr = self.get_Q(s_curr, a_curr)
-        q_prev = self.get_Q(s_prev, a_prev)
-        loss = torch.nn.L1Loss(reduction="sum")(r_prev + self.gamma * q_curr, q_prev)
-
-        self.model.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+        a_prev = player_0_actions[max_action]
 
       # Do the max action.
-      r_prev = game.player_do_action(0, a_curr)
-
+      r_prev = game.player_do_action(0, a_prev)
       s_prev = s_curr
-      a_prev = a_curr
 
       if game.get_player_score(0) > 7:
         break
@@ -457,6 +475,9 @@ class SARSA:
   def run(self):
     score_0 = []
     score_1 = []
+
+    total_loss = []
+
     winner = 0
     for num_iter in tqdm(range(1000000)):
       game = self.run_once()
@@ -469,15 +490,41 @@ class SARSA:
       if p0_score > p1_score:
         winner += 1
 
+      # Sample from the batch and train.
+      if num_iter > 0 and num_iter % 50 == 0:
+        num_sample = 0
+        while num_sample < 200:
+          idx = np.random.choice(len(self.saved_state_transitions), 1)[0]
+          s_t, a_t, r_t, s_t_1 = self.saved_state_transitions[idx]
+          player_0_actions = self.get_possible_actions(s_t)
+
+          # Calculate Q(s,a) for each
+          q_vals = [self.get_Q_target(s_t_1, action)[0] for action in player_0_actions]
+          q_pred = self.gamma * max(q_vals) + r_t
+
+          loss = torch.nn.MSELoss(reduction="sum")(q_pred, self.get_Q(s_t, a_t))
+          self.model.zero_grad()
+          loss.backward()
+          self.optimizer.step()
+
+          total_loss.append(loss.detach().numpy())
+          num_sample += 1
+        self.saved_state_transitions = []
+
+        self.target = copy.deepcopy(self.model)
+
       if num_iter > 0 and num_iter % 3000 == 0:
         print("Avg score : ", np.average(score_0), np.average(score_1), self.exploration)
-        print("Win rate : ", winner / 3000)
+        print("Win rate : ", winner / 3000, " Loss : ", np.average(total_loss))
+
+        total_loss = []
+
         winner = 0
 
         score_0 = []
         score_1 = []
         if num_iter % 9000 == 0:
-          self.exploration *= 0.95
+          self.exploration *= 0.97
 
 sarsa = SARSA()
 
